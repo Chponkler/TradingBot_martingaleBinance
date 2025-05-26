@@ -11,14 +11,14 @@ SYMBOL = 'XRPUSDT'
 COMMISSION = decimal.Decimal('0.001')  # 0.1% комиссия Binance
 
 # Параметры стратегии
-START_PRICE = decimal.Decimal('2.3112')
-DECLINE_PERCENT = decimal.Decimal('5')
+START_PRICE = decimal.Decimal('2.315')
+DECLINE_PERCENT = decimal.Decimal('0.5')
 INITIAL_AMOUNT = decimal.Decimal('0.5')
 MULTIPLIER = decimal.Decimal('1.4')
-MAX_STEPS = 5
+MAX_STEPS = 10
 PROFIT_PERCENT = decimal.Decimal('2')
 
-client = Client(API_KEY, API_SECRET, testnet=True)#Testnet!!!!!!!!!!!!!!!!!!!!!!!!!
+client = Client(API_KEY, API_SECRET, testnet=True)
 
 class TradingBot:
     def __init__(self):
@@ -34,11 +34,11 @@ class TradingBot:
         """Рассчитывает необходимый баланс с учетом комиссий"""
         total = decimal.Decimal('0')
         current_amount = INITIAL_AMOUNT
-        
+
         for _ in range(MAX_STEPS):
             total += current_amount * (1 + COMMISSION)
             current_amount *= MULTIPLIER
-            
+
         return total.quantize(decimal.Decimal('0.00'))
 
     def get_usdt_balance(self):
@@ -60,14 +60,14 @@ class TradingBot:
         print(f"• Множитель шага: {MULTIPLIER}")
         print(f"• Цель прибыли: {PROFIT_PERCENT}%")
         print(f"• Требуемый баланс: {self.required_balance} USDT (с комиссией {COMMISSION*100}%)")
-        
+
         balance = self.get_usdt_balance()
         print(f"\n💰 Ваш текущий баланс: {balance} USDT")
-        
+
         if balance < self.required_balance:
             print("\n⚠️ Внимание: Недостаточно средств!")
             print(f"Необходимо пополнить баланс минимум на {self.required_balance - balance:.2f} USDT")
-        
+
         choice = input("\nЗапустить бота? (yes/no): ").strip().lower()
         if choice != 'yes':
             print("Отмена запуска...")
@@ -88,7 +88,8 @@ class TradingBot:
         print(f"🕒 Ожидаем цену активации {START_PRICE} USDT")
         while True:
             price = self.get_current_price()
-            if price and price == START_PRICE:
+            print(f" Текущая цена {price} USDT")
+            if True:     #price and price == START_PRICE:
                 print(f"✅ Цена достигла {price}, активируем бота!")
                 self.entry_price = price
                 return
@@ -104,29 +105,29 @@ class TradingBot:
             price = self.get_current_price()
             if not price:
                 return False
-                
+
             print(f"\n🛒 Покупаем {amount} USDT XRP по цене {price:.4f}")
             quantity = round(amount / price, 4)
-            
+
             # Рассчитываем комиссию
             commission = quantity * COMMISSION
             total_quantity = quantity - commission
-            
+
             order = client.create_order(
                 symbol=SYMBOL,
                 side=Client.SIDE_BUY,
                 type=Client.ORDER_TYPE_MARKET,
                 quantity=quantity
             )
-            
+
             executed_qty = decimal.Decimal(order['executedQty'])
             self.total_quantity += executed_qty - commission
             self.total_spent += amount
-            
+
             print(f"✅ Куплено {executed_qty:.2f} XRP за {amount:.2f} USDT")
             print(f"💸 Удержано комиссии: {commission:.4f} XRP")
             return True
-            
+
         except BinanceAPIException as e:
             print(f"❌ Ошибка покупки: {e.message}")
             return False
@@ -138,7 +139,7 @@ class TradingBot:
             free = decimal.Decimal(balance['free'])
             if free <= decimal.Decimal('0.0001'):
                 return
-                
+
             print(f"\n💰 Продаем {free:.2f} XRP...")
             order = client.create_order(
                 symbol=SYMBOL,
@@ -146,16 +147,16 @@ class TradingBot:
                 type=Client.ORDER_TYPE_MARKET,
                 quantity=free
             )
-            
+
             # Рассчитываем комиссию
             executed_qty = decimal.Decimal(order['executedQty'])
             commission = executed_qty * COMMISSION
             received = executed_qty - commission
-            
+
             print(f"✅ Продано {received:.2f} USDT")
             print(f"💸 Удержано комиссии: {commission:.4f} XRP")
             self.reset()
-            
+
         except BinanceAPIException as e:
             print(f"❌ Ошибка продажи: {e.message}")
 
@@ -163,12 +164,12 @@ class TradingBot:
         """Проверка условия для фиксации прибыли"""
         if self.total_quantity == 0:
             return False
-            
+
         avg_price = self.total_spent / self.total_quantity
         current_price = self.get_current_price()
         if not current_price:
             return False
-            
+
         target_price = avg_price * (1 + PROFIT_PERCENT/100)
         return current_price >= target_price
 
@@ -180,34 +181,34 @@ class TradingBot:
     def run(self):
         self.confirm_start()
         self.wait_for_start_price()
-        
+
         while self.current_step < MAX_STEPS:
             current_price = self.get_current_price()
             if not current_price:
                 time.sleep(3)
                 continue
-                
+
             target_price = self.calculate_target_price(self.current_step)
-            
+
             print(f"\nШаг {self.current_step + 1}/{MAX_STEPS}")
             print(f"Текущая цена: {current_price:.4f}")
             print(f"Целевая цена покупки: {target_price:.4f}")
             print(f"Сумма покупки: {self.next_buy_amount:.2f} USDT")
             print(f"Потрачено всего: {self.total_spent:.2f} USDT")
             print(f"Накоплено XRP: {self.total_quantity:.2f}")
-            
+
             if current_price <= target_price:
                 if self.buy_xrp(self.next_buy_amount):
                     self.next_buy_amount *= MULTIPLIER
                     self.current_step += 1
-                    
+
                     if self.check_profit_condition():
                         print(f"\n🎯 Условие прибыли достигнуто!")
                         self.sell_all_xrp()
                         return
-                
+
             time.sleep(3)
-        
+
         print("\n⚠️ Достигнут максимум шагов. Ожидаем условия для продажи...")
         while True:
             if self.check_profit_condition():
@@ -226,4 +227,6 @@ if __name__ == "__main__":
             choice = input("Продать все позиции перед выходом? (yes/no): ")
             if choice.lower() == 'yes':
                 bot.sell_all_xrp()
+                break
+            else:
                 break
