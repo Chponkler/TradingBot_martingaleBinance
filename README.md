@@ -46,4 +46,5 @@ client = Client(API_KEY, API_SECRET, testnet=False)  # Было True
 Нажмите Ctrl+C в консоли. Бот предложит продать все позиции.
 
 Пример вывода в консоль во время работы
+
 ![image](https://github.com/user-attachments/assets/daa4e37b-b804-4c8d-9581-b4e177917b36)
