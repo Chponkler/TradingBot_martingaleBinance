@@ -47,4 +47,5 @@ client = Client(API_KEY, API_SECRET, testnet=False)  # Было True
 
 Пример вывода в консоль во время работы
 
-![image](https://github.com/user-attachments/assets/daa4e37b-b804-4c8d-9581-b4e177917b36)
+
+![image](https://github.com/user-attachments/assets/1bace1f3-7c0a-4353-a880-06dc4e585376)
